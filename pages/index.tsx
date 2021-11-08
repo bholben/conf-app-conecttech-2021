@@ -1,6 +1,6 @@
 import Head from "next/head";
 import Image from "next/image";
-import { ChangeEvent, useState } from "react";
+import React, { ChangeEvent, FormEvent, useState } from "react";
 import styles from "../styles/Home.module.css";
 
 type Talk = {
@@ -8,16 +8,50 @@ type Talk = {
   abstract: string;
 };
 
+type Errors = {
+  title: string | null;
+  abstract: string | null;
+};
+
 const newTalk: Talk = {
   title: "",
   abstract: "",
 };
 
-export default function Home() {
-  const [talk, setTalk] = useState(newTalk);
+type Status = "Idle" | "Submitted" | "Complete";
 
-  const onChange = (event: ChangeEvent<HTMLInputElement>) => {
+export default function Home() {
+  const [status, setStatus] = useState<Status>("Idle");
+  const [talk, setTalk] = useState(newTalk);
+  const [talks, setTalks] = useState<Talk[]>([]);
+
+  const validate = () => {
+    const errors: Partial<Errors> = { title: null, abstract: null };
+    if (!talk.title) errors.title = "Title is required";
+    if (!talk.abstract) errors.abstract = "Abstract is required";
+    return errors;
+  };
+
+  // Derived state
+  const errors = validate();
+  const isValid = Object.entries(errors).every(([, error]) => !error);
+
+  const onChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     setTalk({ ...talk, [event.target.id]: event.target.value });
+  };
+
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); // stop post back
+    setStatus("Submitted");
+
+    if (!isValid) return;
+
+    // TODO: Save stuff
+    setTalks([...talks, talk]);
+    setStatus("Complete");
+    setTalk(newTalk);
   };
 
   return (
@@ -30,7 +64,16 @@ export default function Home() {
 
       <main className={styles.main}>
         <h1 className={styles.title}>Speak at ConnectTech!</h1>
-        <form>
+        <section>
+          <h2>Submitted Talks</h2>
+          <ul>
+            {talks.map((t, i) => (
+              <li key={i}>{t.title}</li>
+            ))}
+          </ul>
+        </section>
+
+        <form onSubmit={onSubmit}>
           <h2>Submit a Talk</h2>
           <div>
             <label htmlFor="title">Title</label>
@@ -41,11 +84,15 @@ export default function Home() {
               value={talk.title}
               onChange={onChange}
             />
+            {errors.title && status === "Submitted" && <p>{errors.title}</p>}
           </div>
           <div>
             <label htmlFor="abstract">Abstract</label>
             <br />
             <textarea id="abstract" value={talk.abstract} onChange={onChange} />
+            {errors.abstract && status === "Submitted" && (
+              <p>{errors.abstract}</p>
+            )}
           </div>
           <input type="submit" value="Submit Talk" />
         </form>
